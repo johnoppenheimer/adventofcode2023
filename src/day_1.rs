@@ -24,6 +24,21 @@ impl fmt::Debug for TextPosition {
     }
 }
 
+fn text_to_digit(text: &str) -> &str {
+    match text {
+        "one" => "1",
+        "two" => "2",
+        "three" => "3",
+        "four" => "4",
+        "five" => "5",
+        "six" => "6",
+        "seven" => "7",
+        "eight" => "8",
+        "nine" => "9",
+        _ => text,
+    }
+}
+
 /// Replace written numbers in the text by its digit version
 /// i.e: two -> 2
 /// # Arguments
@@ -55,18 +70,7 @@ fn extract_numbers(text: &str) -> usize {
         .map(|re| re.find_iter(text))
         .flatten()
         .map(|m| TextPosition {
-            text: m
-                .as_str()
-                .to_string()
-                .replace("one", "1")
-                .replace("two", "2")
-                .replace("three", "3")
-                .replace("four", "4")
-                .replace("five", "5")
-                .replace("six", "6")
-                .replace("seven", "7")
-                .replace("eight", "8")
-                .replace("nine", "9"),
+            text: text_to_digit(m.as_str()).to_string(),
             start_index: m.start(),
             end_index: m.end(),
         })
