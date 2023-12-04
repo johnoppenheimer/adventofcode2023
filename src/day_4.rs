@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{BufRead, BufReader},
 };
@@ -70,49 +71,39 @@ fn parse_card(text: &str) -> Card {
 }
 
 fn run_part_2(cards: Vec<Card>) {
-    let mut copies: Vec<Card> = vec![];
+    let mut copies: HashMap<usize, usize> = HashMap::new();
 
     for card in cards.clone() {
         debug!("------------------");
+        debug!("copies: {:?}", copies);
         debug!("Card: {:?}", card.id);
-        debug!(
-            "Current copies: {:?}",
-            copies.clone().iter().map(|c| c.id).collect::<Vec<usize>>(),
-        );
 
-        // check if there is copies of this card
-        let card_copies: Vec<Card> = copies
-            .clone()
-            .into_iter()
-            .filter(|c| c.id == card.id)
-            .collect();
+        let winings_card = card.winning_copies();
+        debug!("Winnings: {:?}", winings_card);
 
-        let winnings_card = card.winning_copies();
+        if let Some(card_copies) = copies.get(&card.id) {
+            for _n in 1..=*card_copies {
+                for card_copy_id in winings_card.clone() {
+                    copies
+                        .entry(card_copy_id)
+                        .and_modify(|c| *c += 1)
+                        .or_insert(1);
+                }
+            }
+        }
 
-        copies.push(card.clone());
+        copies.entry(card.id).and_modify(|c| *c += 1).or_insert(1);
 
-        debug!("Winnings: {:?}", winnings_card);
-        let mut cards_to_add: Vec<Card> = cards
-            .clone()
-            .into_iter()
-            .filter(|c| winnings_card.contains(&c.id))
-            .collect();
-
-        copies.append(&mut cards_to_add);
-
-        for card_copy in card_copies {
-            let winnings_card = card_copy.winning_copies();
-            let mut cards_to_add: Vec<Card> = cards
-                .clone()
-                .into_iter()
-                .filter(|c| winnings_card.contains(&c.id))
-                .collect();
-
-            copies.append(&mut cards_to_add);
+        for card_copy_id in winings_card.clone() {
+            copies
+                .entry(card_copy_id)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
         }
     }
 
-    info!("Part 2: {}", copies.len());
+    let total = copies.iter().map(|(_k, v)| v).sum::<usize>();
+    info!("Part 2: {}", total);
 }
 
 pub fn run() {
