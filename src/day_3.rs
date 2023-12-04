@@ -123,29 +123,20 @@ fn add_nb_stack(stack: &mut Vec<char>, numbers: &mut Vec<MatrixNumber>, i: usize
 }
 
 fn has_part_number_around(gear: Position, numbers: Vec<MatrixNumber>) -> usize {
-    let min_col = gear.col.saturating_sub(1);
-    let min_row = gear.row.saturating_sub(1);
-    let max_col = gear.col + 1;
-    let max_row = gear.row + 1;
+    let top_left = Position {
+        row: gear.row.saturating_sub(1),
+        col: gear.col.saturating_sub(1),
+    };
 
-    debug!(
-        "Gear({}, {}) - [{}, {}] - [{}, {}]",
-        gear.col, gear.row, min_col, min_row, max_col, max_row
-    );
+    let bottom_right = Position {
+        row: gear.row + 1,
+        col: gear.col + 1,
+    };
 
     let surrounds: Vec<usize> = numbers
         .into_iter()
         .filter_map(|nb| {
-            if nb.overlap((
-                Position {
-                    row: min_row,
-                    col: min_col,
-                },
-                Position {
-                    row: max_row,
-                    col: max_col,
-                },
-            )) {
+            if nb.overlap((top_left, bottom_right)) {
                 return Some(nb.value);
             }
             return None;
