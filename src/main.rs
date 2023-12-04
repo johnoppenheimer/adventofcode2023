@@ -1,6 +1,6 @@
-mod day_1;
+mod day_2;
 
 fn main() {
     env_logger::init();
-    day_1::run();
+    day_2::run();
 }

@@ -5,7 +5,7 @@ build:
 	cargo build -r
 
 dev:
-	RUST_LOG=info cargo run
+	RUST_LOG=debug cargo run
 
 run:
 	RUST_LOG=info ./target/release/advent
