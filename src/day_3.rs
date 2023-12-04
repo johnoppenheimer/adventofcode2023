@@ -7,11 +7,27 @@ use std::{
 
 use log::{debug, info};
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Debug, Copy)]
+struct Position {
+    row: usize,
+    col: usize,
+}
+
+#[derive(Eq, PartialEq, Clone, Copy)]
 struct MatrixNumber {
     value: usize,
-    start_position: (usize, usize),
-    end_position: (usize, usize),
+    start_position: Position,
+    end_position: Position,
+}
+
+impl MatrixNumber {
+    fn overlap(&self, bounds: (Position, Position)) -> bool {
+        let (start, end) = bounds;
+        return self.start_position.col <= end.col
+            && self.end_position.col >= start.col
+            && self.start_position.row <= end.row
+            && self.end_position.row >= start.row;
+    }
 }
 
 impl fmt::Debug for MatrixNumber {
@@ -28,72 +44,68 @@ fn is_symbol(c: char) -> bool {
     return !(c.is_numeric() || c == '.');
 }
 
-/// Check if there is a sign around the given matrix_number
-fn has_sign_around(matrix_number: MatrixNumber, matrix: Vec<Vec<char>>) -> bool {
-    debug!("----");
-    debug!("Checking {:?}", matrix_number);
+fn get_surroundings(
+    start_position: Position,
+    end_position: Position,
+    matrix: &Vec<Vec<char>>,
+) -> Vec<char> {
     let mut surrounding: Vec<char> = vec![];
 
     let horizontal_length = matrix[0].len() - 1;
 
-    if matrix_number.start_position.0 > 0 {
-        let y = matrix_number.start_position.0.saturating_sub(1);
-        let from = matrix_number.start_position.1.saturating_sub(1);
-        let to = min(matrix_number.end_position.1 + 1, horizontal_length);
+    if start_position.col > 0 {
+        let row = start_position.row.saturating_sub(1);
+        let from = start_position.col.saturating_sub(1);
+        let to = min(end_position.col + 1, horizontal_length);
 
-        let above = matrix[y][from..=to].to_vec();
-
-        debug!(
-            "Above: {} ({}, {}) - {:?} {}",
-            y,
-            from,
-            to,
-            above,
-            above.clone().into_iter().any(|el| is_symbol(el))
-        );
-
+        let above = matrix[row][from..=to].to_vec();
         surrounding.append(&mut above.clone());
     } else {
         debug!("No above");
     }
 
-    if matrix_number.start_position.0 < matrix.len() - 1 {
-        let y = min(matrix_number.start_position.0 + 1, horizontal_length);
-        let from = matrix_number.start_position.1.saturating_sub(1);
-        let to = min(matrix_number.end_position.1 + 1, horizontal_length);
+    if start_position.col < matrix.len() - 1 {
+        let row = min(start_position.row + 1, horizontal_length);
+        let from = start_position.col.saturating_sub(1);
+        let to = min(end_position.col + 1, horizontal_length);
 
-        let below = matrix[y][from..=to].to_vec();
-        debug!(
-            "Below: {} ({}, {}) - {:?} {}",
-            y,
-            from,
-            to,
-            below,
-            below.clone().into_iter().any(|el| is_symbol(el))
-        );
+        let below = matrix[row][from..=to].to_vec();
         surrounding.append(&mut below.clone());
     } else {
         debug!("No below");
     }
 
-    let x = matrix_number.start_position.0;
-    debug!("x: {}", x);
-    if matrix_number.start_position.1 > 0 {
-        let left = matrix[x][matrix_number.start_position.1.saturating_sub(1)];
+    let row = start_position.row;
+    debug!("col: {}", row);
+    if start_position.row > 0 {
+        let left = matrix[row][start_position.row.saturating_sub(1)];
         debug!("Left: {}", left);
         surrounding.push(left);
     } else {
         debug!("No left");
     }
 
-    if matrix_number.end_position.1 < horizontal_length {
-        let y = min(matrix_number.end_position.1 + 1, horizontal_length);
-        let right = matrix[x][y];
-        debug!("Right({}, {}): {}", x, y, right);
+    if end_position.row < horizontal_length {
+        let y = min(end_position.row + 1, horizontal_length);
+        let right = matrix[row][y];
+        debug!("Right({}, {}): {}", row, y, right);
         surrounding.push(right);
     } else {
         debug!("No right");
     }
+
+    return surrounding;
+}
+
+/// Check if there is a sign around the given matrix_number
+fn has_sign_around(matrix_number: MatrixNumber, matrix: Vec<Vec<char>>) -> bool {
+    debug!("----");
+    debug!("Checking {:?}", matrix_number);
+    let surrounding = get_surroundings(
+        matrix_number.start_position,
+        matrix_number.end_position,
+        &matrix,
+    );
 
     surrounding.into_iter().any(|el| is_symbol(el))
 }
@@ -102,13 +114,59 @@ fn add_nb_stack(stack: &mut Vec<char>, numbers: &mut Vec<MatrixNumber>, i: usize
     let value = stack.iter().collect::<String>().parse().unwrap();
     numbers.push(MatrixNumber {
         value,
-        start_position: (i, j - (stack.len() - 1)),
-        end_position: (i, j),
+        start_position: Position {
+            row: i,
+            col: j - (stack.len() - 1),
+        },
+        end_position: Position { row: i, col: j },
     })
 }
 
-fn extract_part_numbers(matrix: &Vec<Vec<char>>) -> Vec<MatrixNumber> {
+fn has_part_number_around(gear: Position, numbers: Vec<MatrixNumber>) -> usize {
+    let min_col = gear.col.saturating_sub(1);
+    let min_row = gear.row.saturating_sub(1);
+    let max_col = gear.col + 1;
+    let max_row = gear.row + 1;
+
+    debug!(
+        "Gear({}, {}) - [{}, {}] - [{}, {}]",
+        gear.col, gear.row, min_col, min_row, max_col, max_row
+    );
+
+    let surrounds: Vec<usize> = numbers
+        .into_iter()
+        .filter_map(|nb| {
+            if nb.overlap((
+                Position {
+                    row: min_row,
+                    col: min_col,
+                },
+                Position {
+                    row: max_row,
+                    col: max_col,
+                },
+            )) {
+                return Some(nb.value);
+            }
+            return None;
+        })
+        .collect();
+
+    debug!(
+        "Gear({}, {}) - Surrounds: {:?}",
+        gear.col, gear.row, surrounds
+    );
+
+    if surrounds.len() < 2 {
+        return 0;
+    }
+
+    return surrounds.iter().fold(1, |acc, el| acc * el);
+}
+
+fn extract_part_numbers(matrix: &Vec<Vec<char>>) -> (Vec<MatrixNumber>, Vec<Position>) {
     let mut matrix_numbers: Vec<MatrixNumber> = vec![];
+    let mut gears: Vec<Position> = vec![];
 
     for (i, row) in matrix.iter().enumerate() {
         let mut number_stack: Vec<char> = vec![];
@@ -126,6 +184,9 @@ fn extract_part_numbers(matrix: &Vec<Vec<char>>) -> Vec<MatrixNumber> {
                     add_nb_stack(&mut number_stack, &mut matrix_numbers, i, j);
                 }
             } else {
+                if col.eq(&'*') {
+                    gears.push(Position { row: i, col: j });
+                }
                 // Reset stack
                 number_stack = vec![];
             }
@@ -133,7 +194,7 @@ fn extract_part_numbers(matrix: &Vec<Vec<char>>) -> Vec<MatrixNumber> {
         debug!("{:?}", row);
     }
 
-    return matrix_numbers;
+    return (matrix_numbers, gears);
 }
 
 pub fn run() {
@@ -149,11 +210,13 @@ pub fn run() {
         }
     }
 
-    let matrix_numbers: Vec<MatrixNumber> = extract_part_numbers(&matrix);
+    let (matrix_numbers, gears) = extract_part_numbers(&matrix);
 
+    // Part 1
     debug!("Matrix numbers: {:?}", matrix_numbers);
 
     let number_with_sign: Vec<MatrixNumber> = matrix_numbers
+        .clone()
         .into_iter()
         .filter(|nb| has_sign_around(nb.clone(), matrix.clone()))
         .collect();
@@ -162,5 +225,15 @@ pub fn run() {
         .into_iter()
         .map(|nb| nb.value)
         .sum::<usize>();
-    info!("{}", sum);
+
+    // Part 2
+    debug!("Gears: {:?}", gears);
+    let mut gears_surrounds: Vec<usize> = vec![];
+    for gear in gears {
+        let nb = has_part_number_around(gear, matrix_numbers.clone());
+        gears_surrounds.push(nb);
+    }
+
+    info!("Part 1: {}", sum);
+    info!("Part 2: {}", gears_surrounds.iter().sum::<usize>());
 }
