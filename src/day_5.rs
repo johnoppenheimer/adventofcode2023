@@ -8,18 +8,18 @@ use std::{
 
 #[derive(Debug, Clone)]
 struct MapLine {
-    destination: usize,
-    source: usize,
-    source_max: usize,
+    destination: u32,
+    source: u32,
+    source_max: u32,
 }
 
 impl MapLine {
-    fn is_in_range(&self, value: usize) -> bool {
+    fn is_in_range(&self, value: u32) -> bool {
         value >= self.source && value < self.source_max
     }
 }
 
-fn find_source_to_destination(value: usize, maps: &Vec<MapLine>) -> usize {
+fn find_source_to_destination(value: u32, maps: &Vec<MapLine>) -> u32 {
     maps.iter()
         .find_map(|map_line| {
             if map_line.is_in_range(value) {
@@ -30,8 +30,8 @@ fn find_source_to_destination(value: usize, maps: &Vec<MapLine>) -> usize {
         .unwrap_or(value)
 }
 
-fn parse(reader: BufReader<File>) -> (Vec<usize>, Vec<Vec<MapLine>>) {
-    let mut seeds: Vec<usize> = vec![];
+fn parse(reader: BufReader<File>) -> (Vec<u32>, Vec<Vec<MapLine>>) {
+    let mut seeds: Vec<u32> = vec![];
 
     let mut maps: Vec<Vec<MapLine>> = Vec::with_capacity(7);
 
@@ -51,7 +51,7 @@ fn parse(reader: BufReader<File>) -> (Vec<usize>, Vec<Vec<MapLine>>) {
         } else if line == "" {
             //
         } else {
-            let values: Vec<usize> = line.split(" ").filter_map(|s| s.parse().ok()).collect();
+            let values: Vec<u32> = line.split(" ").filter_map(|s| s.parse().ok()).collect();
             let map_line = MapLine {
                 destination: values[0],
                 source: values[1],
@@ -80,7 +80,7 @@ pub fn run() {
     let seeds = init_seeds
         .into_par_iter()
         .chunks(2)
-        .flat_map(|r| (r[0]..r[0] + r[1]).collect::<Vec<usize>>())
+        .flat_map(|r| (r[0]..r[0] + r[1]).into_iter())
         .map(|seed| {
             let mut sed = seed.clone();
 
